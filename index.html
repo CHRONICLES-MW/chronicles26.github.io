@@ -1,130 +1,181 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>CHRONICLES TV</title>
+  <title>Chronicles TV</title>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PWA SUPPORT -->
+  <link rel="manifest" href="manifest.json">
 
   <style>
     body {
       margin: 0;
+      font-family: Arial, sans-serif;
       background: black;
       color: white;
-      font-family: Arial, sans-serif;
+      text-align: center;
     }
 
-    .header {
-      background: #111;
-      padding: 15px;
-      text-align: center;
-      font-size: 28px;
-      font-weight: bold;
-      color: red;
-    }
-
-    .status {
-      text-align: center;
+    #status {
+      padding: 10px;
       font-size: 18px;
-      margin: 10px;
+      font-weight: bold;
     }
 
     .live { color: red; }
     .offline { color: gray; }
 
-    .player {
+    iframe {
       width: 100%;
-      height: 75vh;
+      height: 70vh;
       border: none;
     }
 
-    .countdown {
-      text-align: center;
-      font-size: 20px;
-      margin: 10px;
-      color: yellow;
+    img {
+      width: 100%;
+      height: 70vh;
+      object-fit: cover;
     }
 
-    .schedule {
-      padding: 20px;
-      background: #000;
-    }
-
-    .schedule h2 {
-      color: red;
-    }
-
-    .footer {
-      text-align: center;
+    #program {
       padding: 10px;
       background: #111;
-      font-size: 14px;
-      color: gray;
+      font-size: 16px;
+      color: #00ffcc;
     }
   </style>
 </head>
 
 <body>
 
-  <div class="header">CHRONICLES TV</div>
+  <div id="status">Loading...</div>
 
-  <div id="status" class="status offline">● OFFLINE</div>
+  <!-- PROGRAM INTELLIGENCE DISPLAY -->
+  <div id="program">Loading schedule...</div>
 
-  <div id="countdown" class="countdown"></div>
+  <div id="playerContainer"></div>
 
-  <iframe
-    id="player"
-    class="player"
-    src="https://player.twitch.tv/?channel=chronicles26&parent=chronicles-mw.github.io"
-    allowfullscreen>
-  </iframe>
+<script>
 
-  <div class="schedule">
-    <h2>PROGRAM SCHEDULE</h2>
-    <p>07:00 – Morning Show</p>
-    <p>12:00 – Entertainment Mix</p>
-    <p>18:00 – Live Show</p>
-    <p>20:00 – Highlights</p>
-  </div>
+const channel = "chronicles26";
+const parent = "chronicles-mw.github.io";
 
-  <div class="footer">
-    CHRONICLES TV © 2026
-  </div>
+let lastState = null;
 
-  <script>
-    // SIMPLE LIVE CHECK (manual simulation)
-    let isLive = false; // change to true when streaming
+/* -----------------------------
+   🎬 PROGRAM INTELLIGENCE SYSTEM
+------------------------------*/
 
-    const status = document.getElementById("status");
+// Weekly schedule (edit freely)
+const schedule = [
+  { start: "06:00", end: "12:00", title: "🌅 Morning Worship & Inspiration" },
+  { start: "12:00", end: "15:00", title: "📺 Midday Music Mix" },
+  { start: "15:00", end: "18:00", title: "🎮 Youth & Gaming Hour" },
+  { start: "18:00", end: "22:00", title: "🔥 Evening Live Show" },
+  { start: "22:00", end: "06:00", title: "🌙 Night Replay / Auto Loop" }
+];
 
-    if (isLive) {
-      status.textContent = "🔴 LIVE NOW";
-      status.className = "status live";
+function getCurrentProgram() {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  for (let slot of schedule) {
+    let [sh, sm] = slot.start.split(":").map(Number);
+    let [eh, em] = slot.end.split(":").map(Number);
+
+    let start = sh * 60 + sm;
+    let end = eh * 60 + em;
+
+    // handles overnight slots
+    if (end < start) {
+      if (currentMinutes >= start || currentMinutes < end) return slot.title;
     } else {
-      status.textContent = "● OFFLINE";
-      status.className = "status offline";
+      if (currentMinutes >= start && currentMinutes < end) return slot.title;
     }
+  }
 
-    // COUNTDOWN TO NEXT SHOW (example 18:00)
-    function updateCountdown() {
-      const now = new Date();
-      const next = new Date();
-      next.setHours(18,0,0);
+  return "📡 Default Programming";
+}
 
-      if (now > next) {
-        next.setDate(next.getDate() + 1);
-      }
+function updateProgramDisplay() {
+  document.getElementById("program").innerHTML =
+    "📺 Now Showing: " + getCurrentProgram();
+}
 
-      const diff = next - now;
+/* -----------------------------
+   🔄 LIVE DETECTION SYSTEM
+------------------------------*/
 
-      const hours = Math.floor(diff / (1000*60*60));
-      const minutes = Math.floor((diff % (1000*60*60))/(1000*60));
+function checkLive() {
+  const img = new Image();
 
-      document.getElementById("countdown").textContent =
-        "Next Show Starts In: " + hours + "h " + minutes + "m";
+  const testUrl =
+    "https://static-cdn.jtvnw.net/previews-ttv/live_user_" +
+    channel +
+    ".jpg?rand=" +
+    Date.now();
+
+  img.src = testUrl;
+
+  img.onload = function () {
+    if (lastState !== "live") {
+      showLive();
+      lastState = "live";
     }
+  };
 
-    setInterval(updateCountdown, 60000);
-    updateCountdown();
-  </script>
+  img.onerror = function () {
+    if (lastState !== "offline") {
+      showOffline();
+      lastState = "offline";
+    }
+  };
+}
+
+/* -----------------------------
+   🔴 LIVE MODE
+------------------------------*/
+
+function showLive() {
+  document.getElementById("status").innerHTML = "🔴 LIVE NOW";
+  document.getElementById("status").className = "live";
+
+  document.getElementById("playerContainer").innerHTML = `
+    <iframe
+      src="https://player.twitch.tv/?channel=${channel}&parent=${parent}"
+      allowfullscreen>
+    </iframe>
+  `;
+}
+
+/* -----------------------------
+   ⚫ OFFLINE MODE + PROGRAM INFO
+------------------------------*/
+
+function showOffline() {
+  document.getElementById("status").innerHTML = "⚫ OFFLINE";
+  document.getElementById("status").className = "offline";
+
+  document.getElementById("playerContainer").innerHTML = `
+    <img src="offline-banner.png">
+  `;
+}
+
+/* -----------------------------
+   🔄 AUTO LOOP SYSTEM
+------------------------------*/
+
+setInterval(() => {
+  checkLive();
+  updateProgramDisplay();
+}, 30000);
+
+// initial run
+checkLive();
+updateProgramDisplay();
+
+</script>
 
 </body>
 </html>
